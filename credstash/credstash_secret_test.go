@@ -8,6 +8,9 @@ import (
 
 func TestAccCredstashSecret(t *testing.T) {
 	resourceName := "credstash_secret.terraform"
+	resourceNameNewVersion := "credstash_secret.terraform_new_version"
+	dsResourceName := "data.credstash_secret.terraform"
+	dsResourceNameNewVersion := "data.credstash_secret.terraform_new_version"
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
@@ -15,17 +18,25 @@ func TestAccCredstashSecret(t *testing.T) {
 			{
 				Config: testAccCheckCredstashSecretBasic,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", "terraform-resource-acc1"),
-					resource.TestCheckResourceAttr(resourceName, "value", "test1"),
-					resource.TestCheckResourceAttr(resourceName, "version", "0000000000000000001"),
+					resource.TestCheckResourceAttrPair(resourceName, "name", dsResourceName,"name"),
+					resource.TestCheckResourceAttrPair(resourceName, "value", dsResourceName,"value"),
+					resource.TestCheckResourceAttrPair(resourceName, "version", dsResourceName,"version"),
 				),
 			},
 			{
-				Config: testAccCheckCredstashSecretBasicNewVersion,
+				Config: testAccCheckCredstashSecretResourceNewVersion,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", "terraform-resource-acc1"),
-					resource.TestCheckResourceAttr(resourceName, "value", "test1-updated"),
-					resource.TestCheckResourceAttr(resourceName, "version", "0000000000000000002"),
+					resource.TestCheckResourceAttr(resourceNameNewVersion, "name", "terraform-resource-acc1"),
+					resource.TestCheckResourceAttr(resourceNameNewVersion, "value","test1-updated"),
+					resource.TestCheckResourceAttr(resourceNameNewVersion, "version", "0000000000000000002"),
+				),
+			},
+			{
+				Config: testAccCheckCredstashSecretDatasourceVersions,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrPair(resourceNameNewVersion, "name", dsResourceNameNewVersion,"name"),
+					resource.TestCheckResourceAttrPair(resourceNameNewVersion, "value", dsResourceNameNewVersion,"value"),
+					resource.TestCheckResourceAttrPair(resourceNameNewVersion, "version", dsResourceNameNewVersion,"version"),
 				),
 			},
 		},
@@ -35,16 +46,16 @@ func TestAccCredstashSecret(t *testing.T) {
 func TestAccCredstashSecretData(t *testing.T)  {
 	resourceName := "credstash_secret.resource_test1"
 	dsResourceName := "data.credstash_secret.data_test1"
-	resource.ParallelTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCheckCredstashSecretBasicDatasource,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", "terraform-data-acc1"),
-					resource.TestCheckResourceAttr(resourceName, "value", "secret1"),
-					resource.TestCheckResourceAttr(dsResourceName, "value", "secret1"),
+					resource.TestCheckResourceAttrPair(resourceName, "name",dsResourceName, "name"),
+					resource.TestCheckResourceAttrPair(resourceName, "value", dsResourceName,"value"),
+					resource.TestCheckResourceAttrPair(resourceName, "version",dsResourceName, "version"),
 				),
 			},
 		},
@@ -54,16 +65,16 @@ func TestAccCredstashSecretData(t *testing.T)  {
 func TestAccCredstashSecretDataWithContext(t *testing.T)  {
 	resourceName := "credstash_secret.resource_test2"
 	dsResourceName := "data.credstash_secret.data_test2"
-	resource.ParallelTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCheckCredstashSecretBasicDatasourceWithContext,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", "terraform-data-acc2"),
-					resource.TestCheckResourceAttr(resourceName, "value", "secret2"),
-					resource.TestCheckResourceAttr(dsResourceName, "value", "secret2"),
+					resource.TestCheckResourceAttrPair(resourceName, "name", dsResourceName,"name"),
+					resource.TestCheckResourceAttrPair(resourceName, "value", dsResourceName,"value"),
+					resource.TestCheckResourceAttrPair(resourceName, "version", dsResourceName,"version"),
 					resource.TestCheckResourceAttrPair(resourceName, "context.foo", dsResourceName,"context.foo"),
 					resource.TestCheckResourceAttrPair(resourceName, "context.baz", dsResourceName,"context.baz"),
 				),
@@ -77,11 +88,26 @@ resource "credstash_secret" "terraform" {
 	name = "terraform-resource-acc1"
 	value = "test1"
 }
+data "credstash_secret" "terraform" {
+	name    = "${credstash_secret.terraform.name}"
+}
 `
-const testAccCheckCredstashSecretBasicNewVersion = `
-resource "credstash_secret" "terraform" {
+
+const testAccCheckCredstashSecretResourceNewVersion = `
+resource "credstash_secret" "terraform_new_version" {
 	name = "terraform-resource-acc1"
 	value = "test1-updated"
+}
+`
+
+const testAccCheckCredstashSecretDatasourceVersions = `
+resource "credstash_secret" "terraform_new_version" {
+	name = "terraform-resource-acc1"
+	value = "test1-updated"
+}
+data "credstash_secret" "terraform_new_version" {
+	name    = "${credstash_secret.terraform_new_version.name}"
+	version = "2"
 }
 `
 
