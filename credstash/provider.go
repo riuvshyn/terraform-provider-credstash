@@ -1,23 +1,30 @@
-package main
+package credstash
 
 import (
-	"log"
-
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/Versent/unicreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/sspinc/terraform-provider-credstash/credstash"
 )
 
-var _ terraform.ResourceProvider = provider()
+var _ terraform.ResourceProvider = Provider()
 
-const defaultAWSProfile = "default"
+const defaultKMSKey = "alias/credstash"
 
-func provider() terraform.ResourceProvider {
+type Config struct {
+	Region    string
+	TableName string
+	Profile   string
+	KmsKey    string
+}
+
+func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
 		DataSourcesMap: map[string]*schema.Resource{
 			"credstash_secret": dataSourceSecret(),
+		},
+		ResourcesMap: map[string]*schema.Resource{
+			"credstash_secret": resourceCredstashSecret(),
 		},
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -29,6 +36,7 @@ func provider() terraform.ResourceProvider {
 				}, nil),
 				Description: "The region where AWS operations will take place. Examples\n" +
 					"are us-east-1, us-west-2, etc.",
+				InputDefault: "eu-central-1",
 			},
 			"table": {
 				Type:        schema.TypeString,
@@ -39,8 +47,14 @@ func provider() terraform.ResourceProvider {
 			"profile": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Default:     defaultAWSProfile,
+				Default:     "",
 				Description: "The profile that should be used to connect to AWS",
+			},
+			"kms_key": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Default:     defaultKMSKey,
+				Description: "The KMS key to use when storing secrets",
 			},
 		},
 		ConfigureFunc: providerConfig,
@@ -48,26 +62,22 @@ func provider() terraform.ResourceProvider {
 }
 
 func providerConfig(d *schema.ResourceData) (interface{}, error) {
-	region := d.Get("region").(string)
-	table := d.Get("table").(string)
-	profile := d.Get("profile").(string)
+	//TODO FIX ME
+	//region := aws.String(d.Get("region").(string))
+	//profile := aws.String(d.Get("profile").(string))
 
-	var sess *session.Session
-	var err error
-	if profile != defaultAWSProfile {
-		log.Printf("[DEBUG] creating a session for profile: %s", profile)
-		sess, err = session.NewSessionWithOptions(session.Options{
-			Config:            aws.Config{Region: aws.String(region)},
-			Profile:           profile,
-			SharedConfigState: session.SharedConfigEnable,
-		})
-	} else {
-		sess, err = session.NewSession(&aws.Config{Region: aws.String(region)})
-	}
+	sess, err := session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	})
 	if err != nil {
 		return nil, err
 	}
+	unicreds.SetDynamoDBConfig(sess.Config)
+	unicreds.SetKMSConfig(sess.Config)
+	//unicreds.SetAwsConfig(region, profile,aws.String(""))
 
-	log.Printf("[DEBUG] configured credstash for table %s", table)
-	return credstash.New(table, sess), nil
+	return &Config{
+		TableName: d.Get("table").(string),
+		KmsKey:    d.Get("kms_key").(string),
+	}, nil
 }
