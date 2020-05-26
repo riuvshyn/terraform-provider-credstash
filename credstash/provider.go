@@ -2,6 +2,7 @@ package credstash
 
 import (
 	"github.com/Versent/unicreds"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
@@ -34,8 +35,7 @@ func Provider() terraform.ResourceProvider {
 					"AWS_REGION",
 					"AWS_DEFAULT_REGION",
 				}, nil),
-				Description: "The region where AWS operations will take place. Examples\n" +
-					"are us-east-1, us-west-2, etc.",
+				Description:  "The region where AWS operations will take place. Examples are us-east-1, us-west-2, etc.",
 				InputDefault: "eu-central-1",
 			},
 			"table": {
@@ -62,22 +62,27 @@ func Provider() terraform.ResourceProvider {
 }
 
 func providerConfig(d *schema.ResourceData) (interface{}, error) {
-	//TODO FIX ME
-	//region := aws.String(d.Get("region").(string))
-	//profile := aws.String(d.Get("profile").(string))
+	region := d.Get("region").(string)
+	profile := d.Get("profile").(string)
 
 	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
+		Profile:           profile,
+		Config: aws.Config{
+			Region: aws.String(region),
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	unicreds.SetDynamoDBConfig(sess.Config)
-	unicreds.SetKMSConfig(sess.Config)
-	//unicreds.SetAwsConfig(region, profile,aws.String(""))
+
+	unicreds.SetDynamoDBSession(sess)
+	unicreds.SetKMSSession(sess)
 
 	return &Config{
 		TableName: d.Get("table").(string),
 		KmsKey:    d.Get("kms_key").(string),
+		Region:    region,
+		Profile:   profile,
 	}, nil
 }

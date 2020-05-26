@@ -1,4 +1,4 @@
-VERSION = $(shell git tag --sort=version:refname  | tail -1)
+VERSION = "v1.0.0"
 
 PACKAGES = $(shell go list ./... | grep -v vendor)
 
@@ -14,7 +14,7 @@ test:
 	go test $(TESTOPTS) $(PACKAGES)
 
 testacc:
-	AWS_REGION=eu-central-1 TF_ACC=1 go test -v $(TESTOPTS) $(PACKAGES) -timeout 120m
+	AWS_REGION=eu-central-1 AWS_PROFILE=staging CREDSTASH_DYNAMODB_TABLE=credential-store AWS_KMS_KEY=alias/credstash TF_ACC=1 go test -v $(TESTOPTS) $(PACKAGES) -timeout 120m
 
 release:
 	GOOS=darwin go build -v -o terraform-provider-credstash_darwin_amd64

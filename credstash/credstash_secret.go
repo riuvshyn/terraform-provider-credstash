@@ -10,7 +10,6 @@ func resourceCredstashSecret() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceSecretPut,
 		Read:   resourceSecretRead,
-		Update: resourceSecretPut,
 		Delete: resourceSecretDelete,
 		Exists: resourceSecretExists,
 
@@ -25,6 +24,7 @@ func resourceCredstashSecret() *schema.Resource {
 				Type:        schema.TypeString,
 				Sensitive:   true,
 				Required:    true,
+				ForceNew:    true,
 				Description: "Value of the secret",
 			},
 			"version": {
@@ -35,6 +35,7 @@ func resourceCredstashSecret() *schema.Resource {
 			"context": {
 				Type:        schema.TypeMap,
 				Optional:    true,
+				ForceNew:    true,
 				Description: "Encryption context for the secret",
 			},
 		},
@@ -76,7 +77,7 @@ func resourceSecretPut(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	d.SetId(name)
+	d.SetId(name + "_" + version)
 	d.Set("version", version)
 	d.Set("context", context)
 
@@ -113,15 +114,16 @@ func resourceSecretRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceSecretDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	name := d.Get("name").(string)
 
-	err := unicreds.DeleteSecret(&config.TableName, name)
+	// We don't want to delete any secrets so we just remove it from tf state.
 
-	if err != nil {
-		return err
-	}
-
+	//config := meta.(*Config)
+	//name := d.Get("name").(string)
+	//err := unicreds.DeleteSecret(&config.TableName, name)
+	//
+	//if err != nil {
+	//	return err
+	//}
 	d.SetId("")
 	return nil
 }
